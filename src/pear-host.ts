@@ -159,7 +159,8 @@ const configStore: Record<string, unknown> =
     },
     plugins: {
       'in-app-menu': { enabled: true },
-      notifications: { enabled: true },
+      'navigation': { enabled: false },
+      'notifications': { enabled: true },
     },
   };
 

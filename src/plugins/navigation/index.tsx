@@ -11,14 +11,15 @@ export default createPlugin({
   description: () => t('plugins.navigation.description'),
   restartNeeded: false,
   config: {
-    enabled: true,
+    enabled: false,
   },
   renderer: {
     buttonContainer: document.createElement('div'),
     start() {
-      if (!this.buttonContainer) {
-        this.buttonContainer = document.createElement('div');
-      }
+      try {
+        if (!this.buttonContainer) {
+          this.buttonContainer = document.createElement('div');
+        }
 
       render(
         () => (
@@ -67,9 +68,12 @@ export default createPlugin({
       );
       const menu = document.querySelector('#right-content');
       menu?.prepend(this.buttonContainer);
+      } catch (err) {
+        console.warn('[navigation] start failed:', err);
+      }
     },
     stop() {
-      this.buttonContainer.remove();
+      this.buttonContainer?.remove();
     },
   },
 });
