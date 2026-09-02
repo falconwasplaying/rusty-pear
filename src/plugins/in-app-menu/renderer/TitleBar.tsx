@@ -229,8 +229,9 @@ export const TitleBar = (props: TitleBarProps) => {
         -1;
 
       if (index >= 0) {
-        if (menuItem) now?.submenu?.items?.splice(index, 1, menuItem);
-        else now?.submenu?.items?.splice(index, 1);
+        if (menuItem) {
+          now?.submenu?.items?.splice(index, 1, menuItem);
+        }
       }
       if (now?.submenu) {
         stack.push(...now.submenu.items);

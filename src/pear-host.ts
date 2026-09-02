@@ -218,10 +218,8 @@ interface MenuItemDef {
 }
 
 const menuActionMap = new Map<number, () => void | Promise<void>>();
-let nextCommandId = 10000;
 
-function registerMenuAction(action: () => void | Promise<void>): number {
-  const id = ++nextCommandId;
+function setMenuAction(id: number, action: () => void | Promise<void>): number {
   menuActionMap.set(id, action);
   return id;
 }
@@ -253,11 +251,13 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
 
   function makePluginMenu(
     pluginId: string,
+    baseId: number,
     label: string,
-    extraSubmenuItems?: () => MenuItemDef[],
+    extraSubmenuItems?: (base: number) => MenuItemDef[],
   ): MenuItemDef {
     const enabled = isPluginEnabled(pluginId);
-    const toggleCmdId = registerMenuAction(() => togglePlugin(pluginId));
+    const toggleCmdId = baseId + 1;
+    setMenuAction(toggleCmdId, () => togglePlugin(pluginId));
 
     if (!enabled || !extraSubmenuItems) {
       return {
@@ -271,7 +271,7 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
     }
 
     return {
-      commandId: registerMenuAction(() => {}),
+      commandId: baseId,
       label,
       type: 'submenu',
       visible: true,
@@ -287,12 +287,12 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
             pluginId,
           },
           {
-            commandId: ++nextCommandId,
+            commandId: baseId + 2,
             label: '',
             type: 'separator',
             visible: true,
           },
-          ...extraSubmenuItems(),
+          ...extraSubmenuItems(baseId + 10),
         ],
       },
     };
@@ -375,9 +375,9 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
         visible: true,
         submenu: {
           items: [
-            makePluginMenu('in-app-menu', 'In-App Menu', () => [
+            makePluginMenu('in-app-menu', 1010, 'In-App Menu', (base) => [
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 1, () => {
                   const cur = Boolean(getVal('in-app-menu', 'hideDOMWindowControls', false));
                   setPluginConfigVal('in-app-menu', 'hideDOMWindowControls', !cur);
                 }),
@@ -387,15 +387,15 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
             ]),
-            makePluginMenu('visualizer', 'Visualizer', () => [
+            makePluginMenu('visualizer', 1030, 'Visualizer', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Visualizer Type',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: (['butterchurn', 'vudio', 'wave'] as const).map((type) => ({
-                    commandId: registerMenuAction(() =>
+                  items: (['butterchurn', 'vudio', 'wave'] as const).map((type, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('visualizer', 'type', type),
                     ),
                     label: type.charAt(0).toUpperCase() + type.slice(1),
@@ -406,13 +406,13 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
               {
-                commandId: ++nextCommandId,
+                commandId: base + 2,
                 label: 'Frames Per Second',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: [30, 60, 120, 144].map((fps) => ({
-                    commandId: registerMenuAction(() =>
+                  items: [30, 60, 120, 144].map((fps, idx) => ({
+                    commandId: setMenuAction(base + 20 + idx, () =>
                       setPluginConfigVal('visualizer', 'fps', fps),
                     ),
                     label: `${fps} FPS`,
@@ -423,9 +423,9 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
             ]),
-            makePluginMenu('synced-lyrics', 'Synced Lyrics', () => [
+            makePluginMenu('synced-lyrics', 1070, 'Synced Lyrics', (base) => [
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 1, () => {
                   const cur = Boolean(getVal('synced-lyrics', 'preciseTiming', true));
                   setPluginConfigVal('synced-lyrics', 'preciseTiming', !cur);
                 }),
@@ -435,13 +435,13 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
               {
-                commandId: ++nextCommandId,
+                commandId: base + 2,
                 label: 'Line Effect',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: (['fancy', 'scale', 'offset'] as const).map((effect) => ({
-                    commandId: registerMenuAction(() =>
+                  items: (['fancy', 'scale', 'offset'] as const).map((effect, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('synced-lyrics', 'lineEffect', effect),
                     ),
                     label: effect.charAt(0).toUpperCase() + effect.slice(1),
@@ -452,15 +452,15 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
             ]),
-            makePluginMenu('equalizer', 'Equalizer', () => [
+            makePluginMenu('equalizer', 1100, 'Equalizer', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Preset',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: ['Flat', 'Bass Boost', 'Vocal', 'Electronic', 'Rock'].map((preset) => ({
-                    commandId: registerMenuAction(() =>
+                  items: ['Flat', 'Bass Boost', 'Vocal', 'Electronic', 'Rock'].map((preset, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('equalizer', 'preset', preset),
                     ),
                     label: preset,
@@ -471,9 +471,9 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
             ]),
-            makePluginMenu('sponsorblock', 'SponsorBlock', () => [
+            makePluginMenu('sponsorblock', 1130, 'SponsorBlock', (base) => [
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 1, () => {
                   const cur = Boolean(getVal('sponsorblock', 'skipMusicOffTopic', true));
                   setPluginConfigVal('sponsorblock', 'skipMusicOffTopic', !cur);
                 }),
@@ -483,7 +483,7 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 2, () => {
                   const cur = Boolean(getVal('sponsorblock', 'skipNonMusic', true));
                   setPluginConfigVal('sponsorblock', 'skipNonMusic', !cur);
                 }),
@@ -493,16 +493,16 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
             ]),
-            makePluginMenu('skip-silences', 'Skip Silences'),
-            makePluginMenu('precise-volume', 'Precise Volume', () => [
+            makePluginMenu('skip-silences', 1150, 'Skip Silences'),
+            makePluginMenu('precise-volume', 1160, 'Precise Volume', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Volume Step',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: [1, 2, 5, 10].map((step) => ({
-                    commandId: registerMenuAction(() =>
+                  items: [1, 2, 5, 10].map((step, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('precise-volume', 'steps', step),
                     ),
                     label: `${step}%`,
@@ -513,15 +513,15 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
             ]),
-            makePluginMenu('notifications', 'Notifications', () => [
+            makePluginMenu('notifications', 1180, 'Notifications', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Urgency',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: (['low', 'normal', 'critical'] as const).map((level) => ({
-                    commandId: registerMenuAction(() =>
+                  items: (['low', 'normal', 'critical'] as const).map((level, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('notifications', 'urgency', level),
                     ),
                     label: level.charAt(0).toUpperCase() + level.slice(1),
@@ -532,7 +532,7 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 2, () => {
                   const cur = Boolean(getVal('notifications', 'interactive', true));
                   setPluginConfigVal('notifications', 'interactive', !cur);
                 }),
@@ -542,9 +542,9 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
             ]),
-            makePluginMenu('discord', 'Discord Rich Presence', () => [
+            makePluginMenu('discord', 1210, 'Discord Rich Presence', (base) => [
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 1, () => {
                   const cur = Boolean(getVal('discord', 'showTimeRemaining', true));
                   setPluginConfigVal('discord', 'showTimeRemaining', !cur);
                 }),
@@ -554,7 +554,7 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 2, () => {
                   const cur = Boolean(getVal('discord', 'showSongDetails', true));
                   setPluginConfigVal('discord', 'showSongDetails', !cur);
                 }),
@@ -564,15 +564,15 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
             ]),
-            makePluginMenu('downloader', 'Downloader', () => [
+            makePluginMenu('downloader', 1230, 'Downloader', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Audio Format',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: (['mp3', 'flac', 'm4a', 'opus'] as const).map((fmt) => ({
-                    commandId: registerMenuAction(() =>
+                  items: (['mp3', 'flac', 'm4a', 'opus'] as const).map((fmt, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('downloader', 'preset', fmt),
                     ),
                     label: fmt.toUpperCase(),
@@ -583,7 +583,7 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 2, () => {
                   const cur = Boolean(getVal('downloader', 'skipExisting', true));
                   setPluginConfigVal('downloader', 'skipExisting', !cur);
                 }),
@@ -593,9 +593,9 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
             ]),
-            makePluginMenu('ambient-mode', 'Ambient Mode', () => [
+            makePluginMenu('ambient-mode', 1260, 'Ambient Mode', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Quality',
                 type: 'submenu',
                 visible: true,
@@ -604,8 +604,8 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                     { label: 'Low', value: 'low' },
                     { label: 'Medium', value: 'medium' },
                     { label: 'High', value: 'high' },
-                  ].map((q) => ({
-                    commandId: registerMenuAction(() =>
+                  ].map((q, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('ambient-mode', 'quality', q.value),
                     ),
                     label: q.label,
@@ -616,7 +616,7 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
               {
-                commandId: ++nextCommandId,
+                commandId: base + 2,
                 label: 'Opacity',
                 type: 'submenu',
                 visible: true,
@@ -625,8 +625,8 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                     { label: '50%', value: 0.5 },
                     { label: '85%', value: 0.85 },
                     { label: '100%', value: 1.0 },
-                  ].map((o) => ({
-                    commandId: registerMenuAction(() =>
+                  ].map((o, idx) => ({
+                    commandId: setMenuAction(base + 20 + idx, () =>
                       setPluginConfigVal('ambient-mode', 'opacity', o.value),
                     ),
                     label: o.label,
@@ -637,9 +637,9 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
             ]),
-            makePluginMenu('picture-in-picture', 'Picture in Picture', () => [
+            makePluginMenu('picture-in-picture', 1300, 'Picture in Picture', (base) => [
               {
-                commandId: registerMenuAction(() => {
+                commandId: setMenuAction(base + 1, () => {
                   const cur = Boolean(getVal('picture-in-picture', 'alwaysOnTop', true));
                   setPluginConfigVal('picture-in-picture', 'alwaysOnTop', !cur);
                 }),
@@ -649,15 +649,15 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 visible: true,
               },
             ]),
-            makePluginMenu('playback-speed', 'Playback Speed', () => [
+            makePluginMenu('playback-speed', 1320, 'Playback Speed', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Speed',
                 type: 'submenu',
                 visible: true,
                 submenu: {
-                  items: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((spd) => ({
-                    commandId: registerMenuAction(() =>
+                  items: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((spd, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('playback-speed', 'speed', spd),
                     ),
                     label: `${spd}x`,
@@ -668,9 +668,9 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
             ]),
-            makePluginMenu('quality-changer', 'Quality Changer', () => [
+            makePluginMenu('quality-changer', 1340, 'Quality Changer', (base) => [
               {
-                commandId: ++nextCommandId,
+                commandId: base + 1,
                 label: 'Preferred Quality',
                 type: 'submenu',
                 visible: true,
@@ -679,8 +679,8 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                     { label: 'High (256kbps)', value: 'high' },
                     { label: 'Normal (128kbps)', value: 'normal' },
                     { label: 'Low (64kbps)', value: 'low' },
-                  ].map((q) => ({
-                    commandId: registerMenuAction(() =>
+                  ].map((q, idx) => ({
+                    commandId: setMenuAction(base + 10 + idx, () =>
                       setPluginConfigVal('quality-changer', 'quality', q.value),
                     ),
                     label: q.label,
@@ -691,12 +691,12 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
                 },
               },
             ]),
-            makePluginMenu('scrobbler', 'Scrobbler'),
-            makePluginMenu('album-actions', 'Album Actions'),
-            makePluginMenu('album-color-theme', 'Album Color Theme'),
-            makePluginMenu('blur-nav-bar', 'Blur Navigation Bar'),
-            makePluginMenu('custom-output-device', 'Custom Output Device'),
-            makePluginMenu('disable-autoplay', 'Disable Autoplay'),
+            makePluginMenu('scrobbler', 1360, 'Scrobbler'),
+            makePluginMenu('album-actions', 1370, 'Album Actions'),
+            makePluginMenu('album-color-theme', 1380, 'Album Color Theme'),
+            makePluginMenu('blur-nav-bar', 1390, 'Blur Navigation Bar'),
+            makePluginMenu('custom-output-device', 1400, 'Custom Output Device'),
+            makePluginMenu('disable-autoplay', 1410, 'Disable Autoplay'),
           ],
         },
       },
