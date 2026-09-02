@@ -28,6 +28,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "dev:frontend": "vite --config vite.config.mts",
+    "build:frontend": "vite build --config vite.config.mts",
     "clean": "pnpm del-cli dist && pnpm del-cli pack && pnpm del-cli .vite-inspect",
     "dist": "pnpm clean && pnpm build && pnpm electron-builder --win --mac --linux -p never",
     "dist:linux": "pnpm clean && pnpm build && pnpm electron-builder --linux -p never",
