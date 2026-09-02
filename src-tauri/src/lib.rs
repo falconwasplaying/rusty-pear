@@ -39,6 +39,16 @@ pub fn run() {
             let css = include_str!("../../src/music-player.css");
             let mut init_script = format!(
                 r#"(function() {{
+                    try {{
+                        if (window.self !== window.top) {{
+                            return;
+                        }}
+                    }} catch (e) {{
+                        return;
+                    }}
+                    if (window.__PEAR_INITIAL_CONFIG__) {{
+                        return;
+                    }}
                     window.__PEAR_INITIAL_CONFIG__ = {};
                     function injectCss() {{
                         if (document.head || document.documentElement) {{
@@ -61,7 +71,21 @@ pub fn run() {
                 .unwrap_or_else(|_| include_str!("../../dist/renderer/renderer.js").to_string());
 
             init_script.push('\n');
+            init_script.push_str(r#"(function() {
+                try {
+                    if (window.self !== window.top) {
+                        return;
+                    }
+                    if (window.__PEAR_RENDERER_LOADED__) {
+                        return;
+                    }
+                    window.__PEAR_RENDERER_LOADED__ = true;
+                } catch (e) {
+                    return;
+                }
+            "#);
             init_script.push_str(&renderer_code);
+            init_script.push_str("\n})();");
 
             let window = match app.get_webview_window("main") {
                 Some(w) => w,

@@ -16,6 +16,17 @@ if (typeof Promise !== 'undefined' && typeof (Promise as any).withResolvers === 
   };
 }
 
+// Only run in the top-level main frame (prevent subframes/iframes from running PearHost)
+if (typeof window !== 'undefined') {
+  try {
+    if (window.self !== window.top) {
+      throw new Error('[PearHost] Subframe ignored');
+    }
+  } catch {
+    // Cross-origin iframe or subframe - abort
+  }
+}
+
 // Prevent error storms from flooding DevTools console and causing memory leaks
 if (typeof window !== 'undefined') {
   const errorCounts = new Map<string, number>();
@@ -325,6 +336,20 @@ function findMenuItemById(commandId: number): MenuItemDef | null {
 }
 
 export function initPearHost(): PearHost {
+  if (typeof window !== 'undefined') {
+    try {
+      if (window.self !== window.top) {
+        return (window as any).pear || {};
+      }
+    } catch {
+      return (window as any).pear || {};
+    }
+    if ((window as any).__PEAR_HOST_INITIALIZED__) {
+      return (window as any).pear || {};
+    }
+    (window as any).__PEAR_HOST_INITIALIZED__ = true;
+  }
+
   const pear: PearHost = {
     app: {
       async getPath(_name: string) {

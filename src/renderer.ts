@@ -540,19 +540,38 @@ const initObserver = async () => {
   });
 };
 
-console.log('[Pear] Starting renderer initialization...');
-initObserver()
-  .then(() => {
-    console.log('[Pear] Preloading i18n and configuration...');
-    return preload();
-  })
-  .then(() => {
-    console.log('[Pear] Preload complete, loading plugins...');
-    return main();
-  })
-  .then(() => {
-    console.log('[Pear] All plugins initialized successfully!');
-  })
-  .catch((err) => {
-    console.error('[Pear] Fatal error during renderer startup:', err);
-  });
+let shouldStartRenderer = true;
+if (typeof window !== 'undefined') {
+  try {
+    if (window.self !== window.top) {
+      shouldStartRenderer = false;
+    }
+  } catch {
+    shouldStartRenderer = false;
+  }
+  if ((window as any).__PEAR_RENDERER_STARTED__) {
+    shouldStartRenderer = false;
+  }
+  if (shouldStartRenderer) {
+    (window as any).__PEAR_RENDERER_STARTED__ = true;
+  }
+}
+
+if (shouldStartRenderer) {
+  console.log('[Pear] Starting renderer initialization...');
+  initObserver()
+    .then(() => {
+      console.log('[Pear] Preloading i18n and configuration...');
+      return preload();
+    })
+    .then(() => {
+      console.log('[Pear] Preload complete, loading plugins...');
+      return main();
+    })
+    .then(() => {
+      console.log('[Pear] All plugins initialized successfully!');
+    })
+    .catch((err) => {
+      console.error('[Pear] Fatal error during renderer startup:', err);
+    });
+}
