@@ -5,15 +5,16 @@ import { defineConfig, withFilter } from 'vite';
 import viteResolve from 'vite-plugin-resolve';
 import solidPlugin from 'vite-plugin-solid';
 
-import { i18nImporter } from './vite-plugins/i18n-importer.mjs';
-import { pluginVirtualModuleGenerator } from './vite-plugins/plugin-importer.mjs';
-import pluginLoader from './vite-plugins/plugin-loader.mjs';
+import { i18nImporter } from './vite-plugins/i18n-importer.mts';
+import { pluginVirtualModuleGenerator } from './vite-plugins/plugin-importer.mts';
+import pluginLoader from './vite-plugins/plugin-loader.mts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const resolveAlias = {
   '@': resolve(__dirname, './src'),
   '@assets': resolve(__dirname, './assets'),
+  electron: resolve(__dirname, './src/utils/electron-shim.ts'),
 };
 
 export default defineConfig(({ mode }) => {
