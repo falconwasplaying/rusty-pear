@@ -85,11 +85,15 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
     let plugins_menu = Submenu::with_items(app, "Plugins", true, &plugin_item_refs)?;
 
-    let menu = Menu::with_items(
+    let _menu = Menu::with_items(
         app,
         &[&file_menu, &options_menu, &view_menu, &nav_menu, &plugins_menu],
     )?;
-    app.set_menu(menu)?;
+
+    // On Windows/Linux, attaching a native HMENU to the window draws the classic
+    // Windows 7 / 95 style gray menu bar. Pear uses the in-app HTML TitleBar instead.
+    #[cfg(target_os = "macos")]
+    app.set_menu(_menu)?;
 
     app.on_menu_event(|app, event| {
         let id_str = event.id.as_ref();

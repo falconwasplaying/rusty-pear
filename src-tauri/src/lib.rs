@@ -39,6 +39,7 @@ pub fn run() {
             let css = include_str!("../../src/music-player.css");
             let mut init_script = format!(
                 r#"(function() {{
+                    window.__PEAR_INITIAL_CONFIG__ = {};
                     function injectCss() {{
                         if (document.head || document.documentElement) {{
                             var s = document.createElement('style');
@@ -51,6 +52,7 @@ pub fn run() {
                     }}
                     injectCss();
                 }})();"#,
+                serde_json::to_string(&initial_config).unwrap_or_else(|_| "{}".to_string()),
                 serde_json::to_string(css).unwrap_or_else(|_| "\"\"".to_string())
             );
 
@@ -101,6 +103,8 @@ pub fn run() {
             commands::window_set_size,
             commands::window_set_position,
             commands::window_maximize,
+            commands::window_unmaximize,
+            commands::window_minimize,
             commands::window_is_maximized,
             commands::window_set_always_on_top,
             commands::window_show,
