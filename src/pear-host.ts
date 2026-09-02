@@ -217,9 +217,86 @@ interface MenuItemDef {
   };
 }
 
+const menuActionMap = new Map<number, () => void | Promise<void>>();
+let nextCommandId = 10000;
+
+function registerMenuAction(action: () => void | Promise<void>): number {
+  const id = ++nextCommandId;
+  menuActionMap.set(id, action);
+  return id;
+}
+
+function togglePlugin(pluginId: string) {
+  const current = Boolean(getNested(configStore, `plugins.${pluginId}.enabled`));
+  const next = !current;
+  setNested(configStore, `plugins.${pluginId}.enabled`, next);
+  invokeHost('set_config', { key: `plugins.${pluginId}.enabled`, value: next });
+  emitLocal('config-changed', { key: `plugins.${pluginId}.enabled`, value: next });
+  emitLocal('refresh-in-app-menu');
+}
+
+function setPluginConfigVal(pluginId: string, path: string, value: unknown) {
+  const key = `plugins.${pluginId}.${path}`;
+  setNested(configStore, key, value);
+  invokeHost('set_config', { key, value });
+  emitLocal('config-changed', { key, value });
+  emitLocal('refresh-in-app-menu');
+}
+
 function getMenuDefinition(): { items: MenuItemDef[] } {
-  const plugins = (configStore.plugins as Record<string, { enabled?: boolean }>) || {};
-  const isEnabled = (id: string) => Boolean(plugins[id]?.enabled);
+  menuActionMap.clear();
+
+  const isPluginEnabled = (id: string) =>
+    Boolean(getNested(configStore, `plugins.${id}.enabled`));
+  const getVal = (id: string, path: string, fallback?: unknown) =>
+    getNested(configStore, `plugins.${id}.${path}`) ?? fallback;
+
+  function makePluginMenu(
+    pluginId: string,
+    label: string,
+    extraSubmenuItems?: () => MenuItemDef[],
+  ): MenuItemDef {
+    const enabled = isPluginEnabled(pluginId);
+    const toggleCmdId = registerMenuAction(() => togglePlugin(pluginId));
+
+    if (!enabled || !extraSubmenuItems) {
+      return {
+        commandId: toggleCmdId,
+        label,
+        type: 'checkbox',
+        checked: enabled,
+        visible: true,
+        pluginId,
+      };
+    }
+
+    return {
+      commandId: registerMenuAction(() => {}),
+      label,
+      type: 'submenu',
+      visible: true,
+      pluginId,
+      submenu: {
+        items: [
+          {
+            commandId: toggleCmdId,
+            label: 'Enabled',
+            type: 'checkbox',
+            checked: true,
+            visible: true,
+            pluginId,
+          },
+          {
+            commandId: ++nextCommandId,
+            label: '',
+            type: 'separator',
+            visible: true,
+          },
+          ...extraSubmenuItems(),
+        ],
+      },
+    };
+  }
 
   return {
     items: [
@@ -298,26 +375,328 @@ function getMenuDefinition(): { items: MenuItemDef[] } {
         visible: true,
         submenu: {
           items: [
-            { commandId: 101, label: 'In-App Menu', type: 'checkbox', checked: isEnabled('in-app-menu'), visible: true, pluginId: 'in-app-menu' },
-            { commandId: 102, label: 'Visualizer', type: 'checkbox', checked: isEnabled('visualizer'), visible: true, pluginId: 'visualizer' },
-            { commandId: 103, label: 'Synced Lyrics', type: 'checkbox', checked: isEnabled('synced-lyrics'), visible: true, pluginId: 'synced-lyrics' },
-            { commandId: 104, label: 'Equalizer', type: 'checkbox', checked: isEnabled('equalizer'), visible: true, pluginId: 'equalizer' },
-            { commandId: 105, label: 'SponsorBlock', type: 'checkbox', checked: isEnabled('sponsorblock'), visible: true, pluginId: 'sponsorblock' },
-            { commandId: 106, label: 'Skip Silences', type: 'checkbox', checked: isEnabled('skip-silences'), visible: true, pluginId: 'skip-silences' },
-            { commandId: 107, label: 'Precise Volume', type: 'checkbox', checked: isEnabled('precise-volume'), visible: true, pluginId: 'precise-volume' },
-            { commandId: 108, label: 'Notifications', type: 'checkbox', checked: isEnabled('notifications'), visible: true, pluginId: 'notifications' },
-            { commandId: 109, label: 'Discord Rich Presence', type: 'checkbox', checked: isEnabled('discord'), visible: true, pluginId: 'discord' },
-            { commandId: 110, label: 'Downloader', type: 'checkbox', checked: isEnabled('downloader'), visible: true, pluginId: 'downloader' },
-            { commandId: 111, label: 'Ambient Mode', type: 'checkbox', checked: isEnabled('ambient-mode'), visible: true, pluginId: 'ambient-mode' },
-            { commandId: 112, label: 'Picture in Picture', type: 'checkbox', checked: isEnabled('picture-in-picture'), visible: true, pluginId: 'picture-in-picture' },
-            { commandId: 113, label: 'Playback Speed', type: 'checkbox', checked: isEnabled('playback-speed'), visible: true, pluginId: 'playback-speed' },
-            { commandId: 114, label: 'Quality Changer', type: 'checkbox', checked: isEnabled('quality-changer'), visible: true, pluginId: 'quality-changer' },
-            { commandId: 115, label: 'Scrobbler', type: 'checkbox', checked: isEnabled('scrobbler'), visible: true, pluginId: 'scrobbler' },
-            { commandId: 116, label: 'Album Actions', type: 'checkbox', checked: isEnabled('album-actions'), visible: true, pluginId: 'album-actions' },
-            { commandId: 117, label: 'Album Color Theme', type: 'checkbox', checked: isEnabled('album-color-theme'), visible: true, pluginId: 'album-color-theme' },
-            { commandId: 118, label: 'Blur Navigation Bar', type: 'checkbox', checked: isEnabled('blur-nav-bar'), visible: true, pluginId: 'blur-nav-bar' },
-            { commandId: 119, label: 'Custom Output Device', type: 'checkbox', checked: isEnabled('custom-output-device'), visible: true, pluginId: 'custom-output-device' },
-            { commandId: 120, label: 'Disable Autoplay', type: 'checkbox', checked: isEnabled('disable-autoplay'), visible: true, pluginId: 'disable-autoplay' },
+            makePluginMenu('in-app-menu', 'In-App Menu', () => [
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('in-app-menu', 'hideDOMWindowControls', false));
+                  setPluginConfigVal('in-app-menu', 'hideDOMWindowControls', !cur);
+                }),
+                label: 'Hide DOM Window Controls',
+                type: 'checkbox',
+                checked: Boolean(getVal('in-app-menu', 'hideDOMWindowControls', false)),
+                visible: true,
+              },
+            ]),
+            makePluginMenu('visualizer', 'Visualizer', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Visualizer Type',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: (['butterchurn', 'vudio', 'wave'] as const).map((type) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('visualizer', 'type', type),
+                    ),
+                    label: type.charAt(0).toUpperCase() + type.slice(1),
+                    type: 'radio',
+                    checked: getVal('visualizer', 'type', 'butterchurn') === type,
+                    visible: true,
+                  })),
+                },
+              },
+              {
+                commandId: ++nextCommandId,
+                label: 'Frames Per Second',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: [30, 60, 120, 144].map((fps) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('visualizer', 'fps', fps),
+                    ),
+                    label: `${fps} FPS`,
+                    type: 'radio',
+                    checked: getVal('visualizer', 'fps', 60) === fps,
+                    visible: true,
+                  })),
+                },
+              },
+            ]),
+            makePluginMenu('synced-lyrics', 'Synced Lyrics', () => [
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('synced-lyrics', 'preciseTiming', true));
+                  setPluginConfigVal('synced-lyrics', 'preciseTiming', !cur);
+                }),
+                label: 'Precise Timing',
+                type: 'checkbox',
+                checked: Boolean(getVal('synced-lyrics', 'preciseTiming', true)),
+                visible: true,
+              },
+              {
+                commandId: ++nextCommandId,
+                label: 'Line Effect',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: (['fancy', 'scale', 'offset'] as const).map((effect) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('synced-lyrics', 'lineEffect', effect),
+                    ),
+                    label: effect.charAt(0).toUpperCase() + effect.slice(1),
+                    type: 'radio',
+                    checked: getVal('synced-lyrics', 'lineEffect', 'fancy') === effect,
+                    visible: true,
+                  })),
+                },
+              },
+            ]),
+            makePluginMenu('equalizer', 'Equalizer', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Preset',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: ['Flat', 'Bass Boost', 'Vocal', 'Electronic', 'Rock'].map((preset) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('equalizer', 'preset', preset),
+                    ),
+                    label: preset,
+                    type: 'radio',
+                    checked: getVal('equalizer', 'preset', 'Flat') === preset,
+                    visible: true,
+                  })),
+                },
+              },
+            ]),
+            makePluginMenu('sponsorblock', 'SponsorBlock', () => [
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('sponsorblock', 'skipMusicOffTopic', true));
+                  setPluginConfigVal('sponsorblock', 'skipMusicOffTopic', !cur);
+                }),
+                label: 'Skip Music Off-Topic',
+                type: 'checkbox',
+                checked: Boolean(getVal('sponsorblock', 'skipMusicOffTopic', true)),
+                visible: true,
+              },
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('sponsorblock', 'skipNonMusic', true));
+                  setPluginConfigVal('sponsorblock', 'skipNonMusic', !cur);
+                }),
+                label: 'Skip Non-Music Sections',
+                type: 'checkbox',
+                checked: Boolean(getVal('sponsorblock', 'skipNonMusic', true)),
+                visible: true,
+              },
+            ]),
+            makePluginMenu('skip-silences', 'Skip Silences'),
+            makePluginMenu('precise-volume', 'Precise Volume', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Volume Step',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: [1, 2, 5, 10].map((step) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('precise-volume', 'steps', step),
+                    ),
+                    label: `${step}%`,
+                    type: 'radio',
+                    checked: getVal('precise-volume', 'steps', 5) === step,
+                    visible: true,
+                  })),
+                },
+              },
+            ]),
+            makePluginMenu('notifications', 'Notifications', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Urgency',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: (['low', 'normal', 'critical'] as const).map((level) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('notifications', 'urgency', level),
+                    ),
+                    label: level.charAt(0).toUpperCase() + level.slice(1),
+                    type: 'radio',
+                    checked: getVal('notifications', 'urgency', 'normal') === level,
+                    visible: true,
+                  })),
+                },
+              },
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('notifications', 'interactive', true));
+                  setPluginConfigVal('notifications', 'interactive', !cur);
+                }),
+                label: 'Interactive Notification',
+                type: 'checkbox',
+                checked: Boolean(getVal('notifications', 'interactive', true)),
+                visible: true,
+              },
+            ]),
+            makePluginMenu('discord', 'Discord Rich Presence', () => [
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('discord', 'showTimeRemaining', true));
+                  setPluginConfigVal('discord', 'showTimeRemaining', !cur);
+                }),
+                label: 'Show Time Remaining',
+                type: 'checkbox',
+                checked: Boolean(getVal('discord', 'showTimeRemaining', true)),
+                visible: true,
+              },
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('discord', 'showSongDetails', true));
+                  setPluginConfigVal('discord', 'showSongDetails', !cur);
+                }),
+                label: 'Show Song Details',
+                type: 'checkbox',
+                checked: Boolean(getVal('discord', 'showSongDetails', true)),
+                visible: true,
+              },
+            ]),
+            makePluginMenu('downloader', 'Downloader', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Audio Format',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: (['mp3', 'flac', 'm4a', 'opus'] as const).map((fmt) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('downloader', 'preset', fmt),
+                    ),
+                    label: fmt.toUpperCase(),
+                    type: 'radio',
+                    checked: getVal('downloader', 'preset', 'mp3') === fmt,
+                    visible: true,
+                  })),
+                },
+              },
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('downloader', 'skipExisting', true));
+                  setPluginConfigVal('downloader', 'skipExisting', !cur);
+                }),
+                label: 'Skip Existing Files',
+                type: 'checkbox',
+                checked: Boolean(getVal('downloader', 'skipExisting', true)),
+                visible: true,
+              },
+            ]),
+            makePluginMenu('ambient-mode', 'Ambient Mode', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Quality',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: [
+                    { label: 'Low', value: 'low' },
+                    { label: 'Medium', value: 'medium' },
+                    { label: 'High', value: 'high' },
+                  ].map((q) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('ambient-mode', 'quality', q.value),
+                    ),
+                    label: q.label,
+                    type: 'radio',
+                    checked: getVal('ambient-mode', 'quality', 'medium') === q.value,
+                    visible: true,
+                  })),
+                },
+              },
+              {
+                commandId: ++nextCommandId,
+                label: 'Opacity',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: [
+                    { label: '50%', value: 0.5 },
+                    { label: '85%', value: 0.85 },
+                    { label: '100%', value: 1.0 },
+                  ].map((o) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('ambient-mode', 'opacity', o.value),
+                    ),
+                    label: o.label,
+                    type: 'radio',
+                    checked: getVal('ambient-mode', 'opacity', 0.85) === o.value,
+                    visible: true,
+                  })),
+                },
+              },
+            ]),
+            makePluginMenu('picture-in-picture', 'Picture in Picture', () => [
+              {
+                commandId: registerMenuAction(() => {
+                  const cur = Boolean(getVal('picture-in-picture', 'alwaysOnTop', true));
+                  setPluginConfigVal('picture-in-picture', 'alwaysOnTop', !cur);
+                }),
+                label: 'Always on Top',
+                type: 'checkbox',
+                checked: Boolean(getVal('picture-in-picture', 'alwaysOnTop', true)),
+                visible: true,
+              },
+            ]),
+            makePluginMenu('playback-speed', 'Playback Speed', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Speed',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((spd) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('playback-speed', 'speed', spd),
+                    ),
+                    label: `${spd}x`,
+                    type: 'radio',
+                    checked: getVal('playback-speed', 'speed', 1.0) === spd,
+                    visible: true,
+                  })),
+                },
+              },
+            ]),
+            makePluginMenu('quality-changer', 'Quality Changer', () => [
+              {
+                commandId: ++nextCommandId,
+                label: 'Preferred Quality',
+                type: 'submenu',
+                visible: true,
+                submenu: {
+                  items: [
+                    { label: 'High (256kbps)', value: 'high' },
+                    { label: 'Normal (128kbps)', value: 'normal' },
+                    { label: 'Low (64kbps)', value: 'low' },
+                  ].map((q) => ({
+                    commandId: registerMenuAction(() =>
+                      setPluginConfigVal('quality-changer', 'quality', q.value),
+                    ),
+                    label: q.label,
+                    type: 'radio',
+                    checked: getVal('quality-changer', 'quality', 'high') === q.value,
+                    visible: true,
+                  })),
+                },
+              },
+            ]),
+            makePluginMenu('scrobbler', 'Scrobbler'),
+            makePluginMenu('album-actions', 'Album Actions'),
+            makePluginMenu('album-color-theme', 'Album Color Theme'),
+            makePluginMenu('blur-nav-bar', 'Blur Navigation Bar'),
+            makePluginMenu('custom-output-device', 'Custom Output Device'),
+            makePluginMenu('disable-autoplay', 'Disable Autoplay'),
           ],
         },
       },
@@ -570,6 +949,11 @@ export function initPearHost(): PearHost {
           }
           if (channel === 'peard:menu-event') {
             const commandId = args[0] as number;
+            const action = menuActionMap.get(commandId);
+            if (action) {
+              await action();
+              return;
+            }
             if (commandId === 1) {
               await invokeHost('plugin:process|relaunch');
             } else if (commandId === 2) {
@@ -590,14 +974,17 @@ export function initPearHost(): PearHost {
               const current = Boolean(getNested(configStore, 'options.alwaysOnTop'));
               setNested(configStore, 'options.alwaysOnTop', !current);
               await invokeHost('window_set_always_on_top', { alwaysOnTop: !current });
-            } else if (commandId >= 101 && commandId <= 120) {
-              const item = findMenuItemById(commandId);
-              if (item?.pluginId) {
-                const current = Boolean(getNested(configStore, `plugins.${item.pluginId}.enabled`));
-                setNested(configStore, `plugins.${item.pluginId}.enabled`, !current);
-                await invokeHost('set_config', { key: `plugins.${item.pluginId}.enabled`, value: !current });
-                emitLocal('config-changed', { key: `plugins.${item.pluginId}.enabled`, value: !current });
-              }
+              emitLocal('refresh-in-app-menu');
+            } else if (commandId === 11) {
+              const current = Boolean(getNested(configStore, 'options.resumeOnStart') ?? true);
+              setNested(configStore, 'options.resumeOnStart', !current);
+              await invokeHost('set_config', { key: 'options.resumeOnStart', value: !current });
+              emitLocal('refresh-in-app-menu');
+            } else if (commandId === 12) {
+              const current = Boolean(getNested(configStore, 'options.autoResetAppCache') ?? false);
+              setNested(configStore, 'options.autoResetAppCache', !current);
+              await invokeHost('set_config', { key: 'options.autoResetAppCache', value: !current });
+              emitLocal('refresh-in-app-menu');
             }
             return;
           }

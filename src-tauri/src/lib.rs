@@ -115,8 +115,9 @@ pub fn run() {
             let _ = window.show();
             let _ = window.set_focus();
 
-            #[cfg(debug_assertions)]
-            window.open_devtools();
+            if std::env::var("PEAR_DEBUG").map(|v| v == "1").unwrap_or(false) {
+                window.open_devtools();
+            }
 
             let _ = menu::setup_menu(app.handle());
             let _ = tray::setup_tray(app.handle());
