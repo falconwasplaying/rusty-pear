@@ -11,21 +11,7 @@
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-      {
-        "label": "main",
-        "title": "YouTube Music",
-        "width": 1024,
-        "height": 768,
-        "minWidth": 325,
-        "minHeight": 425,
-        "visible": true,
-        "center": true,
-        "transparent": false,
-        "decorations": true,
-        "url": "https://music.youtube.com"
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null,
       "capabilities": ["default"]

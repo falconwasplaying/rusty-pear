@@ -36,11 +36,59 @@ pub fn run() {
             };
             app.manage(app_state);
 
-            if let Some(window) = app.get_webview_window("main") {
-                window::configure_window(&window, &initial_config);
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            let css = include_str!("../../src/music-player.css");
+            let mut init_script = format!(
+                r#"(function() {{
+                    function injectCss() {{
+                        if (document.head || document.documentElement) {{
+                            var s = document.createElement('style');
+                            s.id = 'pear-music-player-css';
+                            s.textContent = {};
+                            (document.head || document.documentElement).appendChild(s);
+                        }} else {{
+                            setTimeout(injectCss, 10);
+                        }}
+                    }}
+                    injectCss();
+                }})();"#,
+                serde_json::to_string(css).unwrap_or_else(|_| "\"\"".to_string())
+            );
+
+            let renderer_code = std::fs::read_to_string("../dist/renderer/renderer.js")
+                .or_else(|_| std::fs::read_to_string("dist/renderer/renderer.js"))
+                .unwrap_or_else(|_| include_str!("../../dist/renderer/renderer.js").to_string());
+
+            init_script.push('\n');
+            init_script.push_str(&renderer_code);
+
+            let window = match app.get_webview_window("main") {
+                Some(w) => w,
+                None => {
+                    let mut builder = tauri::WebviewWindowBuilder::new(
+                        app,
+                        "main",
+                        tauri::WebviewUrl::External("https://music.youtube.com".parse().unwrap()),
+                    )
+                    .title("YouTube Music")
+                    .inner_size(1024.0, 768.0)
+                    .min_inner_size(325.0, 425.0)
+                    .center()
+                    .decorations(true)
+                    .transparent(false)
+                    .initialization_script(&init_script);
+
+                    if let Some(icon) = app.default_window_icon() {
+                        builder = builder.icon(icon.clone())?;
+                    }
+
+                    builder.build()?
+                }
+            };
+
+            window::configure_window(&window, &initial_config);
+            let _ = window.show();
+            let _ = window.set_focus();
+            let _ = window.eval(&init_script);
 
             let _ = menu::setup_menu(app.handle());
             let _ = tray::setup_tray(app.handle());

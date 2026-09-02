@@ -3,6 +3,9 @@
   "identifier": "default",
   "description": "Default capabilities for Pear Desktop main window",
   "windows": ["*"],
+  "remote": {
+    "urls": ["https://music.youtube.com/*", "https://*.youtube.com/*"]
+  },
   "permissions": [
     "core:default",
     "dialog:default",
