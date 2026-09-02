@@ -26,7 +26,14 @@ export const onRendererLoad = async ({
   ipc,
 }: RendererContext<InAppMenuConfig>) => {
   console.log('[in-app-menu] onRendererLoad initializing...');
-  setConfig(await getConfig());
+  try {
+    const cfg = await getConfig();
+    if (cfg) {
+      setConfig(cfg);
+    }
+  } catch (err) {
+    console.warn('[in-app-menu] getConfig fallback to default:', err);
+  }
 
   document.title = APPLICATION_NAME;
   try {

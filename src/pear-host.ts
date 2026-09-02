@@ -129,13 +129,17 @@ declare global {
 
 // Low-level invocation helper
 export async function invokeHost<T = unknown>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (typeof window !== 'undefined' && window.__TAURI__?.core?.invoke) {
-    return window.__TAURI__.core.invoke(cmd, args) as Promise<T>;
+  try {
+    if (typeof window !== 'undefined' && window.__TAURI__?.core?.invoke) {
+      return (await window.__TAURI__.core.invoke(cmd, args)) as T;
+    }
+    if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.invoke) {
+      return (await window.__TAURI_INTERNALS__.invoke(cmd, args)) as T;
+    }
+  } catch (err) {
+    // Non-fatal fallback for unpermitted or missing host commands
+    return undefined as unknown as T;
   }
-  if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.invoke) {
-    return window.__TAURI_INTERNALS__.invoke(cmd, args) as Promise<T>;
-  }
-  console.warn(`[PearHost] Tauri invoke not found in current environment for command "${cmd}"`);
   return undefined as unknown as T;
 }
 
@@ -394,7 +398,14 @@ export function initPearHost(): PearHost {
     },
     config: {
       async get<T = unknown>(key?: string): Promise<T> {
-        return (getNested(configStore, key) as T) ?? (await invokeHost<T>('get_config', { key }));
+        if (!key) return configStore as T;
+        const val = getNested(configStore, key) as T;
+        if (val !== undefined) return val;
+        try {
+          const remote = await invokeHost<T>('get_config', { key });
+          if (remote !== undefined) return remote;
+        } catch {}
+        return undefined as unknown as T;
       },
       async set(key: string, value: unknown) {
         setNested(configStore, key, value);
