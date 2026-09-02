@@ -38,6 +38,8 @@ pub fn run() {
 
             if let Some(window) = app.get_webview_window("main") {
                 window::configure_window(&window, &initial_config);
+                let _ = window.show();
+                let _ = window.set_focus();
             }
 
             let _ = menu::setup_menu(app.handle());

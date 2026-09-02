@@ -12,9 +12,15 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
     let menu = Menu::with_items(app, &[&play_pause_i, &next_i, &prev_i, &quit_i])?;
 
-    let _tray = TrayIconBuilder::new()
+    let mut builder = TrayIconBuilder::new()
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        .show_menu_on_left_click(false);
+
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+
+    let _tray = builder
         .on_menu_event(|app, event| match event.id.as_ref() {
             "play_pause" => {
                 if let Some(win) = app.get_webview_window("main") {
