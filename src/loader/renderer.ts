@@ -72,43 +72,57 @@ export const forceLoadRendererPlugin = async (id: string) => {
   const plugin = (await rendererPlugins())[id];
   if (!plugin) return;
 
-  const hasEvaled = await startPlugin(id, plugin, {
-    ctx: 'renderer',
-    context: createContext(id),
-  });
+  try {
+    const hasEvaled = await startPlugin(id, plugin, {
+      ctx: 'renderer',
+      context: createContext(id),
+    });
 
-  if (
-    hasEvaled ||
-    plugin?.stylesheets ||
-    (hasEvaled === null &&
-      typeof plugin?.renderer !== 'function' &&
-      plugin?.renderer)
-  ) {
-    loadedPluginMap[id] = plugin;
+    if (
+      hasEvaled ||
+      plugin?.stylesheets ||
+      (hasEvaled === null &&
+        typeof plugin?.renderer !== 'function' &&
+        plugin?.renderer)
+    ) {
+      loadedPluginMap[id] = plugin;
 
-    if (plugin?.stylesheets) {
-      const styleSheetList = plugin.stylesheets.map((style) => {
-        const styleSheet = new CSSStyleSheet();
-        styleSheet.replaceSync(style);
+      if (plugin?.stylesheets) {
+        try {
+          const styleSheetList = plugin.stylesheets.map((style) => {
+            const styleSheet = new CSSStyleSheet();
+            styleSheet.replaceSync(style);
 
-        return styleSheet;
-      });
+            return styleSheet;
+          });
 
-      document.adoptedStyleSheets = [
-        ...document.adoptedStyleSheets,
-        ...styleSheetList,
-      ];
+          document.adoptedStyleSheets = [
+            ...document.adoptedStyleSheets,
+            ...styleSheetList,
+          ];
+        } catch (err) {
+          console.warn(`[Pear] Failed to adopt stylesheets for ${id}, using style tags:`, err);
+          for (const style of plugin.stylesheets) {
+            const styleEl = document.createElement('style');
+            styleEl.id = `plugin-${id}-style`;
+            styleEl.textContent = style;
+            (document.head || document.documentElement).appendChild(styleEl);
+          }
+        }
+      }
+
+      console.log(
+        LoggerPrefix,
+        t('common.console.plugins.loaded', { pluginName: id }),
+      );
+    } else {
+      console.log(
+        LoggerPrefix,
+        t('common.console.plugins.initialize-failed', { pluginName: id }),
+      );
     }
-
-    console.log(
-      LoggerPrefix,
-      t('common.console.plugins.loaded', { pluginName: id }),
-    );
-  } else {
-    console.log(
-      LoggerPrefix,
-      t('common.console.plugins.initialize-failed', { pluginName: id }),
-    );
+  } catch (err) {
+    console.error(`[Pear] Error loading plugin ${id}:`, err);
   }
 };
 

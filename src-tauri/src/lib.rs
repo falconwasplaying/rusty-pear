@@ -90,7 +90,9 @@ pub fn run() {
             window::configure_window(&window, &initial_config);
             let _ = window.show();
             let _ = window.set_focus();
-            let _ = window.eval(&init_script);
+
+            #[cfg(debug_assertions)]
+            window.open_devtools();
 
             let _ = menu::setup_menu(app.handle());
             let _ = tray::setup_tray(app.handle());

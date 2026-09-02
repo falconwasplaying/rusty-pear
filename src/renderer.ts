@@ -422,6 +422,7 @@ async function onApiLoaded() {
 }
 
 const definePearTransElements = () => {
+  if (customElements.get('pear-trans')) return;
   customElements.define(
     'pear-trans',
     class extends HTMLElement {
@@ -539,4 +540,19 @@ const initObserver = async () => {
   });
 };
 
-initObserver().then(preload).then(main);
+console.log('[Pear] Starting renderer initialization...');
+initObserver()
+  .then(() => {
+    console.log('[Pear] Preloading i18n and configuration...');
+    return preload();
+  })
+  .then(() => {
+    console.log('[Pear] Preload complete, loading plugins...');
+    return main();
+  })
+  .then(() => {
+    console.log('[Pear] All plugins initialized successfully!');
+  })
+  .catch((err) => {
+    console.error('[Pear] Fatal error during renderer startup:', err);
+  });

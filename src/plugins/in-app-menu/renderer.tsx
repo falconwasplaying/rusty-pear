@@ -25,26 +25,41 @@ export const onRendererLoad = async ({
   getConfig,
   ipc,
 }: RendererContext<InAppMenuConfig>) => {
+  console.log('[in-app-menu] onRendererLoad initializing...');
   setConfig(await getConfig());
 
   document.title = APPLICATION_NAME;
-  const stylesheet = new CSSStyleSheet();
-  stylesheet.replaceSync(scrollStyle);
-  document.adoptedStyleSheets = [...document.adoptedStyleSheets, stylesheet];
+  try {
+    const stylesheet = new CSSStyleSheet();
+    stylesheet.replaceSync(scrollStyle);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, stylesheet];
+  } catch (err) {
+    console.warn('[in-app-menu] adoptedStyleSheets failed:', err);
+  }
 
-  render(
-    () => (
-      <TitleBar
-        enableController={
-          isNotWindowsOrMacOS && !config().hideDOMWindowControls
-        }
-        initialCollapsed={window.mainConfig.get('options.hideMenu')}
-        ipc={ipc}
-        isMacOS={isMacOS}
-      />
-    ),
-    document.body,
-  );
+  const mountTitleBar = () => {
+    const container = document.body || document.documentElement;
+    if (!container) {
+      setTimeout(mountTitleBar, 10);
+      return;
+    }
+    console.log('[in-app-menu] Rendering TitleBar into container');
+    render(
+      () => (
+        <TitleBar
+          enableController={
+            isNotWindowsOrMacOS && !config().hideDOMWindowControls
+          }
+          initialCollapsed={window.mainConfig.get('options.hideMenu')}
+          ipc={ipc}
+          isMacOS={isMacOS}
+        />
+      ),
+      container,
+    );
+  };
+
+  mountTitleBar();
 };
 
 export const onPlayerApiReady = () => {

@@ -1,4 +1,22 @@
-// Pear Desktop Host API implementation for Tauri 2
+/**
+ * Pear Desktop Host API Bridge (Tauri 2 Implementation)
+ * Provides compatibility layer for Pear plugins and renderer scripts.
+ */
+
+// Polyfill Promise.withResolvers for WebView2 environments that lack ES2024
+if (typeof Promise !== 'undefined' && typeof (Promise as any).withResolvers === 'undefined') {
+  (Promise as any).withResolvers = function <T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+}
+
+console.log('[PearHost] Initializing PearHost bridge in WebView2...');
 
 export interface PearApp {
   getPath(name: string): Promise<string>;
