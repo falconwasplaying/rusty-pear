@@ -16,6 +16,22 @@ if (typeof Promise !== 'undefined' && typeof (Promise as any).withResolvers === 
   };
 }
 
+// Prevent error storms from flooding DevTools console and causing memory leaks
+if (typeof window !== 'undefined') {
+  const errorCounts = new Map<string, number>();
+  const origError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    const key = String(args[0]);
+    const count = (errorCounts.get(key) || 0) + 1;
+    errorCounts.set(key, count);
+    if (count <= 5) {
+      origError(...args);
+    } else if (count === 6) {
+      console.warn(`[PearHost] Rate limiting error logging for: ${key.slice(0, 100)} (repeated > 5 times)`);
+    }
+  };
+}
+
 console.log('[PearHost] Initializing PearHost bridge in WebView2...');
 
 export interface PearApp {
@@ -495,73 +511,83 @@ export function initPearHost(): PearHost {
       once: (channel: string, listener: (...args: unknown[]) => void) => {
         return pear.events.once(channel, (payload) => listener({} as unknown, payload));
       },
-      send: (channel: string, ...args: unknown[]) => {
-        pear.events.emit(channel, args[0]);
+      send: (_channel: string, ..._args: unknown[]) => {
+        // In Electron, ipcRenderer.send is one-way from renderer to main.
+        // We purposefully do NOT echo locally to ipcRenderer.on to prevent infinite feedback loops.
       },
       removeListener: () => {},
       removeAllListeners: () => {},
       invoke: async (channel: string, ...args: unknown[]) => {
-        if (channel === 'peard:get-config') {
-          return pear.config.get(`plugins.${args[0]}`);
-        }
-        if (channel === 'peard:set-config') {
-          return pear.config.set(`plugins.${args[0]}`, args[1]);
-        }
-        if (channel === 'get-menu') {
-          return getMenuDefinition();
-        }
-        if (channel === 'get-menu-by-id') {
-          return findMenuItemById(args[0] as number);
-        }
-        if (channel === 'peard:menu-event') {
-          const commandId = args[0] as number;
-          if (commandId === 1) {
-            await invokeHost('plugin:process|relaunch');
-          } else if (commandId === 2) {
-            await invokeHost('plugin:process|exit', { code: 0 });
-          } else if (commandId === 20 || commandId === 21) {
-            window.location.reload();
-          } else if (commandId === 22) {
-            if (document.fullscreenElement) {
-              await document.exitFullscreen();
-            } else {
-              await document.documentElement.requestFullscreen();
+        try {
+          if (channel === 'peard:get-config') {
+            return pear.config.get(`plugins.${args[0]}`);
+          }
+          if (channel === 'peard:set-config') {
+            return pear.config.set(`plugins.${args[0]}`, args[1]);
+          }
+          if (channel === 'get-menu') {
+            return getMenuDefinition();
+          }
+          if (channel === 'get-menu-by-id') {
+            return findMenuItemById(args[0] as number);
+          }
+          if (channel === 'peard:menu-event') {
+            const commandId = args[0] as number;
+            if (commandId === 1) {
+              await invokeHost('plugin:process|relaunch');
+            } else if (commandId === 2) {
+              await invokeHost('plugin:process|exit', { code: 0 });
+            } else if (commandId === 20 || commandId === 21) {
+              window.location.reload();
+            } else if (commandId === 22) {
+              if (document.fullscreenElement) {
+                await document.exitFullscreen();
+              } else {
+                await document.documentElement.requestFullscreen();
+              }
+            } else if (commandId === 30) {
+              window.history.back();
+            } else if (commandId === 31) {
+              window.history.forward();
+            } else if (commandId === 10) {
+              const current = Boolean(getNested(configStore, 'options.alwaysOnTop'));
+              setNested(configStore, 'options.alwaysOnTop', !current);
+              await invokeHost('window_set_always_on_top', { alwaysOnTop: !current });
+            } else if (commandId >= 101 && commandId <= 120) {
+              const item = findMenuItemById(commandId);
+              if (item?.pluginId) {
+                const current = Boolean(getNested(configStore, `plugins.${item.pluginId}.enabled`));
+                setNested(configStore, `plugins.${item.pluginId}.enabled`, !current);
+                await invokeHost('set_config', { key: `plugins.${item.pluginId}.enabled`, value: !current });
+                emitLocal('config-changed', { key: `plugins.${item.pluginId}.enabled`, value: !current });
+              }
             }
-          } else if (commandId === 30) {
-            window.history.back();
-          } else if (commandId === 31) {
-            window.history.forward();
-          } else if (commandId === 10) {
-            const current = Boolean(getNested(configStore, 'options.alwaysOnTop'));
-            setNested(configStore, 'options.alwaysOnTop', !current);
-            await invokeHost('window_set_always_on_top', { alwaysOnTop: !current });
-          } else if (commandId >= 101 && commandId <= 120) {
-            const item = findMenuItemById(commandId);
-            if (item?.pluginId) {
-              const current = Boolean(getNested(configStore, `plugins.${item.pluginId}.enabled`));
-              setNested(configStore, `plugins.${item.pluginId}.enabled`, !current);
-              await invokeHost('set_config', { key: `plugins.${item.pluginId}.enabled`, value: !current });
-              emitLocal('config-changed', { key: `plugins.${item.pluginId}.enabled`, value: !current });
+            return;
+          }
+          if (channel === 'window-is-maximized') {
+            try {
+              const res = await invokeHost<boolean>('window_is_maximized');
+              return typeof res === 'boolean' ? res : false;
+            } catch {
+              return false;
             }
           }
-          return;
+          if (channel === 'window-maximize') {
+            return invokeHost('window_maximize').catch(() => {});
+          }
+          if (channel === 'window-unmaximize') {
+            return invokeHost('window_unmaximize').catch(() => {});
+          }
+          if (channel === 'window-minimize') {
+            return invokeHost('window_minimize').catch(() => {});
+          }
+          if (channel === 'window-close') {
+            return invokeHost('window_close').catch(() => {});
+          }
+          return await invokeHost(channel, { args }).catch(() => null);
+        } catch {
+          return null;
         }
-        if (channel === 'window-is-maximized') {
-          return invokeHost<boolean>('window_is_maximized');
-        }
-        if (channel === 'window-maximize') {
-          return invokeHost('window_maximize');
-        }
-        if (channel === 'window-unmaximize') {
-          return invokeHost('window_unmaximize');
-        }
-        if (channel === 'window-minimize') {
-          return invokeHost('window_minimize');
-        }
-        if (channel === 'window-close') {
-          return invokeHost('window_close');
-        }
-        return invokeHost(channel, { args });
       },
       sendSync: () => null,
       sendToHost: () => {},

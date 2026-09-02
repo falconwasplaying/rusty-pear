@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal, ErrorBoundary } from 'solid-js';
 import { render } from 'solid-js/web';
 
 import { APPLICATION_NAME } from '@/i18n';
@@ -46,14 +46,19 @@ export const onRendererLoad = async ({
     console.log('[in-app-menu] Rendering TitleBar into container');
     render(
       () => (
-        <TitleBar
-          enableController={
-            isNotWindowsOrMacOS && !config().hideDOMWindowControls
-          }
-          initialCollapsed={window.mainConfig.get('options.hideMenu')}
-          ipc={ipc}
-          isMacOS={isMacOS}
-        />
+        <ErrorBoundary fallback={(err) => {
+          console.error('[in-app-menu] TitleBar crashed:', err);
+          return null;
+        }}>
+          <TitleBar
+            enableController={
+              isNotWindowsOrMacOS && !config().hideDOMWindowControls
+            }
+            initialCollapsed={window.mainConfig.get('options.hideMenu')}
+            ipc={ipc}
+            isMacOS={isMacOS}
+          />
+        </ErrorBoundary>
       ),
       container,
     );
