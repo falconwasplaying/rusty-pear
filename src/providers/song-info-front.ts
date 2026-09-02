@@ -16,12 +16,24 @@ const DATAUPDATED_FALLBACK_TIMEOUT_MS = 1500;
 let songInfo: SongInfo = {} as SongInfo;
 export const getSongInfo = () => songInfo;
 
-window.ipcRenderer.on(
-  'peard:update-song-info',
-  (_, extractedSongInfo: SongInfo) => {
-    songInfo = extractedSongInfo;
-  },
-);
+const registerSongInfoListener = () => {
+  if (typeof window !== 'undefined' && window.ipcRenderer) {
+    window.ipcRenderer.on(
+      'peard:update-song-info',
+      (_, extractedSongInfo: SongInfo) => {
+        songInfo = extractedSongInfo;
+      },
+    );
+  }
+};
+
+if (typeof window !== 'undefined') {
+  if (window.ipcRenderer) {
+    registerSongInfoListener();
+  } else {
+    window.addEventListener('pear:ready', registerSongInfoListener, { once: true });
+  }
+}
 
 // Used because 'loadeddata' or 'loadedmetadata' weren't firing on song start for some users (https://github.com/pear-devs/pear-desktop/issues/473)
 const srcChangedEvent = new CustomEvent('peard:src-changed');

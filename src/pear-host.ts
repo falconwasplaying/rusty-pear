@@ -573,7 +573,15 @@ export function initPearHost(): PearHost {
       linux: () => navigator.userAgent.includes('Linux'),
       dev: () => false,
     };
+
+    window.dispatchEvent(new Event('pear:ready'));
   }
 
   return pear;
+}
+
+// Automatically initialize host bridge on module evaluation so window.ipcRenderer
+// and window.mainConfig are available to hoisted ES module imports.
+if (typeof window !== 'undefined') {
+  initPearHost();
 }

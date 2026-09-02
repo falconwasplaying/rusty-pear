@@ -1,19 +1,14 @@
 // Electron compatibility shim for Pear Desktop on Tauri 2
 // Exposes semantic host operations via window.pear and stubs legacy Electron APIs
 
-export const ipcRenderer = typeof window !== 'undefined' && window.ipcRenderer
-  ? (window.ipcRenderer as Record<string, unknown>)
-  : {
-      on: () => {},
-      off: () => {},
-      once: () => {},
-      send: () => {},
-      invoke: async () => {},
-      removeListener: () => {},
-      removeAllListeners: () => {},
-      sendSync: () => null,
-      sendToHost: () => {},
-    };
+export const ipcRenderer = new Proxy({} as Record<string, unknown>, {
+  get(_target, prop: string) {
+    if (typeof window !== 'undefined' && (window as any).ipcRenderer) {
+      return (window as any).ipcRenderer[prop];
+    }
+    return () => {};
+  },
+});
 
 export const shell = {
   openExternal: async (url: string) => {
