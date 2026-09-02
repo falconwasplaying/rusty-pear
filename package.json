@@ -25,6 +25,9 @@
     "dev": "pnpm cross-env NODE_ENV=development NODE_OPTIONS=--enable-source-maps electron-vite dev --watch",
     "dev:renderer": "pnpm cross-env NODE_ENV=development NODE_OPTIONS=--enable-source-maps electron-vite dev",
     "dev:debug": "pnpm cross-env ELECTRON_ENABLE_LOGGING=1 pnpm dev",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "clean": "pnpm del-cli dist && pnpm del-cli pack && pnpm del-cli .vite-inspect",
     "dist": "pnpm clean && pnpm build && pnpm electron-builder --win --mac --linux -p never",
     "dist:linux": "pnpm clean && pnpm build && pnpm electron-builder --linux -p never",
@@ -118,9 +121,11 @@
     "virtua": "0.49.1",
     "vudio": "2.1.1",
     "youtubei.js": "17.2.0",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "@tauri-apps/api": "^2.3.1"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.3.1",
     "@electron-toolkit/tsconfig": "2.0.0",
     "@malept/flatpak-bundler": "0.4.0",
     "@playwright/test": "1.61.1",

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "YouTube Music",
+  "version": "3.12.0",
+  "identifier": "com.github.th-ch.youtube-music",
+  "build": {
+    "beforeDevCommand": "pnpm dev:frontend",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm build:frontend",
+    "frontendDist": "../dist/renderer"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "YouTube Music",
+        "width": 1024,
+        "height": 768,
+        "minWidth": 325,
+        "minHeight": 425,
+        "visible": false,
+        "center": true,
+        "transparent": false,
+        "decorations": true,
+        "url": "https://music.youtube.com"
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../assets/generated/icons/win/icon.ico",
+      "../assets/icon.png"
+    ]
+  }
+}
